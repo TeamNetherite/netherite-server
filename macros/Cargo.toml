@@ -1,0 +1,13 @@
+[package]
+name = "netherite-macros"
+version = "0.1.0"
+authors = ["nothendev <borodinov.ilya@gmail.com>"]
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1"
+proc-macro2 = "1.0"
+syn = { version = "1", features = ["full"] }
