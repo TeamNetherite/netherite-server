@@ -8,6 +8,8 @@ impl ProcMacro for DerivePacket {
     fn invoke(self, input: TokenStream) -> syn::Result<TokenStream> {
         let input = Parser::parse2(DeriveInput::parse, input)?;
 
+
+
         Ok(TokenStream::new())
     }
 }
