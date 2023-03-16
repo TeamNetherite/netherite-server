@@ -4,8 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+bytes = "1"
+stdto = { version = "0", features = ["serde", "derive", "bytes", "toml", "yaml", "json"] }
 serde = "1"
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
-tokio-util = "0"
-netherite-macros.path = "../macros"
+tokio-util = { version = "0", features = ["full"] }
+tokio-stream = "0"
+thiserror = "1"
+netherite-common.path = "../common"

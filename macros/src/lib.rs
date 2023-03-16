@@ -1,18 +1,15 @@
-pub(crate) trait ProcMacro: Sized {
-    fn invoke(self, input: proc_macro2::TokenStream) -> syn::Result<proc_macro2::TokenStream>;
-
-    fn or_compile_err(self, input: TokenStream) -> TokenStream {
-        self.invoke(input.into()).unwrap_or_else(|e| e.to_compile_error()).into()
-    }
-}
-
-mod packet;
+#![feature(auto_traits)]
+#![feature(negative_impls)]
+mod abs;
+mod enum_fields;
+//mod packet;
 
 extern crate proc_macro;
 use proc_macro::TokenStream;
-use crate::packet::DerivePacket;
+use crate::abs::ProcMacro;
+use crate::enum_fields::EnumDerive;
 
-#[proc_macro_derive(Packet)]
-pub fn derive_packet(input: TokenStream) -> TokenStream {
-    DerivePacket.or_compile_err(input)
+#[proc_macro_derive(EnumFields, attributes(enum_field, ef))]
+pub fn enum_fields_derive(input: TokenStream) -> TokenStream {
+    EnumDerive.or_compile_err(input.into()).into()
 }
