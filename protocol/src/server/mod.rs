@@ -5,12 +5,14 @@ use crate::packet::{Packet, SerializedPacket};
 use bytes::Bytes;
 pub use player::*;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use stdto::ToBytes;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 
@@ -32,13 +34,13 @@ impl Server {
         addr: &SocketAddr,
         stream: TcpStream,
     ) -> Result<(), NetheriteError> {
-        let mut ok = self.net.lock().await;
-        if ok.nets.contains_key(addr) {
+        let mut net = self.net.lock().await;
+        if net.nets.contains_key(addr) {
             return Err(NetheriteError::DoubleLogin);
         }
         let mut player = ServerPlayerNet::new(stream).await?;
         player.process_packets();
-        ok.nets.insert(addr.clone(), player);
+        net.nets.insert(addr.clone(), player);
 
         Ok(())
     }
@@ -52,13 +54,28 @@ impl Server {
                 let pack = player.get_packets.recv().await;
                 if let Some(pack) = pack {
                     if pack.packet_id() == P::ID {
-                        return P::try_from_bytes(pack.into_data()).ok()
+                        return P::try_from_bytes(pack.into_data()).ok();
                     }
                 }
             }
         }
 
         None
+    }
+
+    pub async fn send_packet<P: Packet + ToBytes + Serialize>(
+        &mut self,
+        packet: P,
+        addr: &SocketAddr,
+    ) -> Result<(), NetheriteError> {
+        if let Some(player) = self.net.lock().await.nets.get_mut(addr) {
+            player
+                .send_packets
+                .send(SerializedPacket::new::<P>(packet.to_bytes()))
+                .map_err(|e| e.into())
+        } else {
+            Err(NetheriteError::PlayerNotFound(addr.clone()))
+        }
     }
 }
 

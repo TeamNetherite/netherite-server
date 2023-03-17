@@ -5,6 +5,7 @@ use stdto::{AsBytes, ToBytes};
 use tokio_util::codec::{Decoder, Encoder};
 
 #[stdto::bytes(endian = "big")]
+#[derive(Debug)]
 pub struct SerializedPacket {
     length: VarInt,
     packet_id: VarInt,
