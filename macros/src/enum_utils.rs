@@ -1,18 +1,17 @@
 use crate::abs::{FlattenMapResult, FlattenResult, Parenthesized, ProcMacro};
-use proc_macro2::TokenStream;
+use proc_macro2::{Literal, TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens};
 use std::collections::HashMap;
-use std::fmt::{Debug, Display, Formatter};
-use syn::ext::IdentExt;
+use std::fmt::{Debug, Formatter};
 use syn::{
-    parenthesized, parse::Parse, parse::ParseStream, parse::Parser, punctuated::Punctuated,
-    spanned::Spanned, token::Semi, visit_mut::VisitMut, Attribute, Data, DeriveInput, Error, Expr,
-    Ident, Pat, PatType, Token, Type,
+    ext::IdentExt, parse::Parse, parse::ParseStream, parse::Parser, punctuated::Punctuated,
+    spanned::Spanned, Attribute, Data, DeriveInput, Error, Expr, ExprLit, Ident, Lit, Token, Type,
+    Variant,
 };
 
-pub(crate) struct EnumDerive;
+pub(crate) struct EnumFields;
 
-impl ProcMacro for EnumDerive {
+impl ProcMacro for EnumFields {
     fn parse(self, input: TokenStream) -> syn::Result<TokenStream> {
         let input = Parser::parse2(DeriveInput::parse, input)?;
 
@@ -33,12 +32,14 @@ impl ProcMacro for EnumDerive {
                     .attrs
                     .iter()
                     .filter_map(|Attribute { tokens, path, .. }| {
-                        if ["enum_field", "ef"].contains(&path.segments.first()?.ident.unraw().to_string().as_str()) {
+                        if ["enum_field", "ef"]
+                            .contains(&path.segments.first()?.ident.unraw().to_string().as_str())
+                        {
                             let field = Parser::parse2(
                                 Parenthesized::<Punctuated<EnumField, Token![,]>>::parse,
                                 tokens.clone(),
                             )
-                                .map(|a| a.0);
+                            .map(|a| a.0);
 
                             Some(field)
                         } else {
@@ -71,16 +72,17 @@ impl ProcMacro for EnumDerive {
                     a.unwrap().ident.unraw() == "enum_field"
                 })
                 .flatten_map(|a| {
-                    let field = Parser::parse2(
+                    Parser::parse2(
                         Parenthesized::<Punctuated<EnumFieldType, Token![,]>>::parse,
                         a.tokens.clone(),
                     )
-                        .map(|a| a.0);
-                    field
+                    .map(|a| a.0)
                 })?
                 .collect::<Vec<_>>()[..]
             {
                 let fields = awk.into_iter().map(|a| (&a.0, &a.1, &a.2));
+
+                let variant_name = awk.into_iter().find(|t| t.3.is_some());
 
                 let into_field = fields
                     .clone()
@@ -93,12 +95,18 @@ impl ProcMacro for EnumDerive {
                             .map(|(id, vec)| {
                                 (
                                     vec.iter()
-                                        .find(|f| *i == f.0.to_string())
+                                        .find(|f| i.eq(&f.0))
                                         .unwrap(),
                                     *id,
                                 )
                             })
-                            .map(|(EnumField(_, _, _, e), id)| quote!(#e => Ok(#iname::#id),))
+                            .map(|(EnumField(_, _, _, e), id)| {
+                                if let Expr::Lit(ExprLit { lit: Lit::Str(lit), .. }) = e {
+                                    quote!(format!(#lit) => Ok(#iname::#id),)
+                                } else {
+                                    quote!(#e => Ok(#iname::#id),)
+                                }
+                            })
                             .collect::<TokenStream>();
 
                         quote! {
@@ -149,18 +157,30 @@ impl ProcMacro for EnumDerive {
                 let variants: TokenStream = attrs
                     .into_iter()
                     .map(|(ident, fields)| {
-                        let fields = fields
+                        let mut fields = fields
                             .into_iter()
                             .map(|field| {
                                 let id = field.ident();
                                 let val = field.value();
-                                quote!(#id: #val,)
+                                if let Expr::Lit(ExprLit {
+                                    lit: Lit::Str(lit), ..
+                                }) = val
+                                {
+                                    quote!(#id: format!(#lit))
+                                } else {
+                                    quote!(#id: #val)
+                                }
                             })
-                            .collect::<TokenStream>();
+                            .collect::<Vec<TokenStream>>();
+
+                        if let Some(EnumFieldType(var_id, ..)) = variant_name {
+                            let ident_str = TokenTree::Literal(Literal::string(&ident.to_string()));
+                            fields.push(quote!(#var_id: String::from(#ident_str)))
+                        }
 
                         quote! {
                             #iname::#ident => #fields_struct_name {
-                                #fields
+                                #(#fields),*
                             },
                         }
                     })
@@ -176,7 +196,7 @@ impl ProcMacro for EnumDerive {
                         pub fn fields(&self) -> #fields_struct_name {
                             match self {
                                 #variants
-                                _ => panic!("why")
+                                _ => unreachable!()
                             }
                         }
                     }
@@ -196,23 +216,44 @@ mod kw {
     use syn::custom_keyword;
 
     custom_keyword!(delegate);
+    custom_keyword!(variant_name);
 }
 
-pub(crate) struct EnumFieldType(pub Ident, pub Type, pub Option<kw::delegate>);
+pub(crate) struct EnumFieldType(
+    pub Ident,
+    pub Type,
+    pub Option<kw::delegate>,
+    pub Option<kw::variant_name>,
+);
 
 impl Parse for EnumFieldType {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let la = input.lookahead1();
 
-        if la.peek(kw::delegate) {
+        if la.peek(kw::variant_name) {
+            let variant_name: kw::variant_name = input.parse()?;
+            let delegate: Option<kw::delegate> = if input.peek(kw::delegate) {
+                Some(input.parse()?)
+            } else {
+                None
+            };
+            let ident = input.parse()?;
+            let _ = input.parse::<Token![:]>()?;
+            Ok(EnumFieldType(
+                ident,
+                input.parse()?,
+                delegate,
+                Some(variant_name),
+            ))
+        } else if la.peek(kw::delegate) {
             let delegate: kw::delegate = input.parse()?;
             let ident = input.parse()?;
             let _ = input.parse::<Token![:]>()?;
-            Ok(EnumFieldType(ident, input.parse()?, Some(delegate)))
+            Ok(EnumFieldType(ident, input.parse()?, Some(delegate), None))
         } else if la.peek(Ident) {
             let ident = input.parse()?;
             let _ = input.parse::<Token![:]>()?;
-            Ok(EnumFieldType(ident, input.parse()?, None))
+            Ok(EnumFieldType(ident, input.parse()?, None, None))
         } else {
             Err(la.error())
         }
@@ -223,7 +264,13 @@ pub(crate) struct EnumField(Ident, Option<Type>, Token![=], Expr);
 
 impl Debug for EnumField {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "EnumField({}, {}, {})", self.0, self.2.to_token_stream(), self.3.to_token_stream())
+        writeln!(
+            f,
+            "EnumField({}, {}, {})",
+            self.0,
+            self.2.to_token_stream(),
+            self.3.to_token_stream()
+        )
     }
 }
 
@@ -251,7 +298,6 @@ impl Parse for EnumField {
         let la = input.lookahead1();
 
         if la.peek(Ident) {
-            println!("No type");
             Ok(EnumField(
                 input.parse()?,
                 None,
@@ -260,6 +306,32 @@ impl Parse for EnumField {
             ))
         } else {
             Err(la.error())
+        }
+    }
+}
+
+pub(crate) struct EnumValues;
+
+impl ProcMacro for EnumValues {
+    fn parse(self, input: TokenStream) -> syn::Result<TokenStream> {
+        let input = Parser::parse2(DeriveInput::parse, input)?;
+
+        if let Data::Enum(en) = input.data {
+            let enum_name = input.ident;
+            let variants: Vec<_> = en
+                .variants
+                .into_iter()
+                .map(|Variant { ident, .. }| quote!(#enum_name::#ident))
+                .collect();
+            let values_num = TokenTree::Literal(Literal::usize_unsuffixed(variants.len()));
+
+            Ok(quote! {
+                impl #enum_name {
+                    pub const VALUES: [#enum_name; #values_num] = [#(#variants),*];
+                }
+            })
+        } else {
+            Err(Error::new(input.span(), ""))
         }
     }
 }

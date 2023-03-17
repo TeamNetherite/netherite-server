@@ -8,6 +8,7 @@ bytes = "1"
 stdto = { version = "0", features = ["serde", "derive", "bytes", "toml", "yaml", "json"] }
 serde = "1"
 serde_json = "1"
+toml = "0"
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0", features = ["full"] }
 tokio-stream = "0"
