@@ -8,20 +8,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7c0f5c42-a9a4-4f18-b1c7-fc65c4677aba" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/common/src/magic.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/protocol/src/model/chat.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/protocol/src/model/gamemode.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/protocol/src/model/mod.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/protocol/src/model/pos.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/protocol/src/model/score.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/common/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/common/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macros/src/enum_fields.rs" beforeDir="false" afterPath="$PROJECT_DIR$/macros/src/enum_utils.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/macros/src/packet.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/protocol/src/packet/status/mod.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/protocol/src/packet/status/serverbound.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/macros/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/macros/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/macros/src/abs.rs" beforeDir="false" afterPath="$PROJECT_DIR$/macros/src/abs.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/macros/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/macros/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macros/src/packet.rs" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/protocol/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/protocol/src/chat/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/protocol/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/protocol/src/packet/disconnect.rs" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/src/packet/disconnect.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/protocol/src/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/src/error.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/protocol/src/packet/login/handshake.rs" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/src/packet/login/handshake.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/protocol/src/packet/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/src/packet/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/protocol/src/packet/ser.rs" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/src/packet/ser.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/protocol/src/server/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/src/server/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/protocol/src/server/player.rs" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/src/server/player.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/protocol/src/types/var.rs" beforeDir="false" afterPath="$PROJECT_DIR$/protocol/src/types/var.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,16 +50,16 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_ADD_EXTERNAL_FILES": "true",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "last_opened_file_path": "/mnt/u/rs/gloryx/netherite-rs/macros/src",
-    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
-    "settings.editor.selected.configurable": "configurable.group.appearance"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/mnt/u/rs/gloryx/netherite-rs/macros/src&quot;,
+    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;configurable.group.appearance&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/macros/src" />

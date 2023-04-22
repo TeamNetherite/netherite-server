@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+use std::io::Write;
 use bytes::BytesMut;
 use crate::packet::Packet;
 use crate::types::VarInt;
@@ -30,7 +32,7 @@ impl SerializedPacket {
         self.packet_id.value()
     }
 
-    pub fn data(&self) -> &Vec<u8> {
+    pub fn data(&self) -> &[u8] {
         &self.data
     }
 
@@ -39,21 +41,8 @@ impl SerializedPacket {
     }
 }
 
-pub struct PacketCodec;
-
-impl Decoder for PacketCodec {
-    type Item = SerializedPacket;
-    type Error = stdto::error::Error;
-
-    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        <SerializedPacket as ToBytes>::try_from_bytes(src).map(|a| Some(a))
-    }
-}
-
-impl Encoder<SerializedPacket> for PacketCodec {
-    type Error = stdto::error::Error;
-
-    fn encode(&mut self, item: SerializedPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        <SerializedPacket as ToBytes>::try_to_bytes_into(&item, dst)
+impl Display for SerializedPacket {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Packet(id={}, len={}, data={:#?})", self.packet_id(), self.len(), self.data())
     }
 }

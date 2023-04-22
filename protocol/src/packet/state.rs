@@ -1,8 +1,9 @@
+#[derive(Clone, Copy, derive_more::Display)]
 pub enum State {
-    None,
     Handshaking,
     Status,
-    Login
+    Login,
+    Disconnected,
 }
 
 impl TryFrom<i32> for State {
@@ -10,11 +11,11 @@ impl TryFrom<i32> for State {
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         use State::*;
         match value {
-            -1 => Ok(None),
+            -1 => Ok(Disconnected),
             0 => Ok(Handshaking),
             1 => Ok(Status),
             2 => Ok(Login),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }

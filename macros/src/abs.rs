@@ -1,8 +1,10 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
+use proc_macro_crate::FoundCrate;
+use std::default::default;
 use std::iter::Map;
-use syn::parenthesized;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::{parenthesized, Ident, Path, PathSegment};
 
 pub(crate) trait ProcMacro: Sized {
     fn parse(self, input: TokenStream) -> syn::Result<TokenStream>;
@@ -55,7 +57,10 @@ impl<T, E, I: Iterator<Item = Result<T, E>>> FlattenResult<T, E> for I {
 }
 
 impl<T, E, I: Iterator<Item = T>, R> FlattenMapResult<T, E, R> for I {
-    fn flatten_map<F: FnMut(T) -> Result<R, E>>(self, map: F) -> Result<<Vec<R> as IntoIterator>::IntoIter, E> {
+    fn flatten_map<F: FnMut(T) -> Result<R, E>>(
+        self,
+        map: F,
+    ) -> Result<<Vec<R> as IntoIterator>::IntoIter, E> {
         Ok(self.map(map).flatten_result()?.into_iter())
     }
 }
@@ -83,5 +88,18 @@ impl<T: Parse, P: Parse> Parse for Parenthesized<Punctuated<T, P>> {
         parenthesized!(content in input);
 
         Ok(Parenthesized(Punctuated::parse_terminated(&content)?))
+    }
+}
+
+pub fn netherite_protocol() -> Path {
+    match proc_macro_crate::crate_name("netherite-protocol").unwrap() {
+        FoundCrate::Itself => Path::from(PathSegment::from(Ident::new("crate", Span::call_site()))),
+        FoundCrate::Name(name) => Path {
+            leading_colon: Some(default()),
+            segments: Punctuated::from_iter([PathSegment::from(Ident::new(
+                &name,
+                Span::call_site(),
+            ))]),
+        },
     }
 }

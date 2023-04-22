@@ -1,16 +1,26 @@
-use crate::packet::{SerializedPacket, State};
+use crate::error::NetheriteError;
+use crate::packet::login::Handshake;
+use crate::packet::{Packet, SerializedPacket, State};
+use crate::server::Server;
 use bytes::Bytes;
+use futures::SinkExt;
+use futures_sink::Sink;
+use serde::Serialize;
 use std::error::Error;
 use std::io;
 use std::net::SocketAddr;
 use std::pin::{pin, Pin};
+use std::sync::Arc;
 use stdto::ToBytes;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+use tokio::sync::{
+    mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    RwLock,
+};
 use tokio_stream::StreamExt;
 use tokio_util::codec::{BytesCodec, Framed};
-use crate::error::NetheriteError;
+use uuid::Uuid;
 
 type Tx = UnboundedSender<Bytes>;
 type Rx = UnboundedReceiver<Bytes>;
@@ -19,36 +29,20 @@ pub struct ServerPlayerNet {
     // connection
     addr: SocketAddr,
     frame: Framed<TcpStream, BytesCodec>,
-    tx: Tx,
-    rx: Rx,
+    uuid: Uuid,
 
-    pub get_packets: UnboundedReceiver<SerializedPacket>,
-    pub send_packets: UnboundedSender<SerializedPacket>,
-
-    get_packets_transmit: UnboundedSender<SerializedPacket>,
-    send_packets_recv: UnboundedReceiver<SerializedPacket>,
-
-    pub state: State
+    pub state: State,
 }
 
 impl ServerPlayerNet {
     pub async fn new(stream: TcpStream) -> io::Result<Self> {
         let addr = stream.peer_addr()?;
         let frame = Framed::new(stream, BytesCodec::new());
-        let (tx, rx) = unbounded_channel::<Bytes>();
-        let (gptx, gprx) = unbounded_channel();
-        let (sptx, sprx) = unbounded_channel();
 
         Ok(Self {
             addr,
             frame,
-            tx,
-            rx,
-            get_packets: gprx,
-            send_packets: sptx,
-            get_packets_transmit: gptx,
-            send_packets_recv: sprx,
-            state: State::None
+            state: State::Handshaking,
         })
     }
 
@@ -56,41 +50,72 @@ impl ServerPlayerNet {
         &self.addr
     }
 
-    pub async fn disconnect(mut self) -> Result<(), NetheriteError> {
-        self.state = State::None;
-        
+    pub async fn disconnect(&mut self) -> Result<(), NetheriteError> {
+        self.state = State::Disconnected;
+
         self.frame.into_inner().shutdown().await?;
 
         Ok(())
     }
 
-    async fn _launch(mut self: Pin<&mut Self>) {
+    async fn _launch(self: Arc<RwLock<Self>>, server: Arc<RwLock<Server>>) {
         loop {
-            // process frames
-            if let Some(frame) = self.frame.next().await {
-                if let Ok(bytes) = frame {
-                    let _ = self.tx.send(bytes.into());
+            let result: Result<(), NetheriteError> = 'packet: {
+                if let Some(frame) = self.read().await.frame.next().await {
+                    if let Ok(bytes) = frame {
+                        let packet: SerializedPacket =
+                            <SerializedPacket as ToBytes>::from_bytes(bytes);
+
+                        match self.read().await.state {
+                            State::Disconnected => {
+                                log::error!("received packet in `Disconnected` state")
+                            }
+                            State::Handshaking => {
+                                match packet.packet_id() {
+                                    0x00 => {
+                                        let handshake_serverbound =
+                                            Handshake::try_from_bytes(packet.data())?;
+                                        if crate::PROTOCOL_VERSIONS.contains(
+                                            &handshake_serverbound.protocol_version.value(),
+                                        ) {
+                                            self.write().await.state =
+                                                handshake_serverbound.next_state();
+                                        } else {
+                                            self.write().await.disconnect()?;
+                                            break 'packet Err(NetheriteError::UnsupportedProto(
+                                                handshake_serverbound.protocol_version.value(),
+                                            ));
+                                        }
+                                    }
+
+                                    _ => log::error!("unknown packet: {}", packet),
+                                };
+                            }
+                            State::Login => {}
+                            State::Status => {}
+                        };
+                    };
                 };
-            };
 
-            // process incoming packets from rx and send to self.gptx
-            if let Some(bytes) = self.rx.recv().await {
-                let _ = self
-                    .get_packets_transmit
-                    .send(<SerializedPacket as ToBytes>::from_bytes(bytes));
+                Ok(())
             };
-
-            // process packets from send_packets and send to self.frame
-            if let Some(send_packet) = self.send_packets_recv.recv().await {
-                let _ = self
-                    .frame
-                    .write_buffer_mut()
-                    .extend_from_slice(&<SerializedPacket as ToBytes>::to_be_bytes(&send_packet));
+            if let Err(e) = result {
+                log::error!("ERROR: {e}");
             }
         }
     }
 
-    pub(crate) fn process_packets(&mut self) {
-        tokio::spawn(unsafe { Pin::new_unchecked(self) }._launch());
+    pub async fn send_packet<P: Packet + ToBytes + Serialize>(
+        &mut self,
+        packet: P,
+    ) -> Result<(), NetheriteError> {
+        Ok(self
+            .frame
+            .send(Bytes::from(packet.try_to_be_bytes()?))
+            .await?)
+    }
+
+    pub(crate) fn process_packets(self: &Arc<RwLock<Self>>, server: &Arc<RwLock<Server>>) {
+        tokio::spawn(self.clone()._launch(server.clone()));
     }
 }

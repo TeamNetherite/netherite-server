@@ -1,8 +1,11 @@
-use crate::packet::{C2SPacket, Packet, State};
+use netherite_common::macros::Packet;
+use crate::packet::{Packet, State};
 use crate::server::{Server, ServerPlayerNet};
 use crate::types::VarInt;
 
+#[derive(Packet)]
 #[stdto::bytes]
+#[packet(serverbound 0x00 in State::Handshaking)]
 pub struct Handshake {
     pub protocol_version: VarInt,
     pub server_address: String,
@@ -13,18 +16,5 @@ pub struct Handshake {
 impl Handshake {
     pub fn next_state(&self) -> State {
         State::try_from(self.next_state.value()).unwrap_or(State::Login)
-    }
-}
-
-impl Packet for Handshake {
-    const ID: i32 = 0x00;
-}
-
-impl C2SPacket for Handshake {
-    async fn receive(server: &mut Server, client: &mut ServerPlayerNet) {
-        if let Some(packet) = server.receive_packet::<Self>(client.addr()).await {
-            
-            client.state = packet.next_state();
-        }
     }
 }

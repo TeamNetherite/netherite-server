@@ -7,6 +7,7 @@ use stdto::{AsBytes, ToBytes};
 pub const SEGMENT_BITS: i32 = 0x7F;
 pub const CONTINUE_BIT: i32 = 0x80;
 
+#[derive(Debug)]
 pub struct VarInt(i32);
 
 impl VarInt {

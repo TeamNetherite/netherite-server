@@ -9,6 +9,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
+use std::pin::{pin, Pin};
 use std::sync::Arc;
 use stdto::ToBytes;
 use tokio::net::{TcpListener, TcpStream};
@@ -45,22 +46,8 @@ impl Server {
         Ok(())
     }
 
-    pub async fn receive_packet<P: Packet + ToBytes + DeserializeOwned>(
-        &mut self,
-        addr: &SocketAddr,
-    ) -> Option<P> {
-        if let Some(player) = self.net.lock().await.nets.get_mut(addr) {
-            loop {
-                let pack = player.get_packets.recv().await;
-                if let Some(pack) = pack {
-                    if pack.packet_id() == P::ID {
-                        return P::try_from_bytes(pack.into_data()).ok();
-                    }
-                }
-            }
-        }
-
-        None
+    pub(crate) async fn handle_packet(packet: SerializedPacket) {
+        
     }
 
     pub async fn send_packet<P: Packet + ToBytes + Serialize>(
@@ -70,9 +57,7 @@ impl Server {
     ) -> Result<(), NetheriteError> {
         if let Some(player) = self.net.lock().await.nets.get_mut(addr) {
             player
-                .send_packets
-                .send(SerializedPacket::new::<P>(packet.to_bytes()))
-                .map_err(|e| e.into())
+                .send_packet(packet)
         } else {
             Err(NetheriteError::PlayerNotFound(addr.clone()))
         }
